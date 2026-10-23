@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# 示例：以普通用户启动 vLLM OpenAI 兼容服务（切勿 sudo）
+# 复制为 ~/start_vllm_qwen3.sh 后按需修改 MODEL_DIR / 端口。
+
+set -euo pipefail
+
+# 载入系统环境（含 cuda-compat / OPENBLAS 等）
+if [[ -f /etc/environment ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  . /etc/environment
+  set +a
+fi
+
+export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda}"
+export LD_LIBRARY_PATH="/usr/local/cuda/compat:/usr/local/cuda/lib64:/opt/cudnn9/lib:${LD_LIBRARY_PATH:-}"
+export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+export PATH="${HOME}/.local/bin:/usr/local/cuda/bin:${PATH}"
+
+MODEL_DIR="${MODEL_DIR:-${HOME}/models/Qwen3-4B-Instruct-2507-GPTQ-Int4}"
+HOST="${HOST:-0.0.0.0}"
+PORT="${PORT:-8000}"
+
+# 若 tokenizer 缺 chat template，可取消下一行注释并指向自备 jinja
+# CHAT_TEMPLATE_ARGS=(--chat-template "${HOME}/chat_template_qwen3.jinja")
+CHAT_TEMPLATE_ARGS=()
+
+exec python3 -m vllm.entrypoints.openai.api_server \
+  --model "${MODEL_DIR}" \
+  --host "${HOST}" \
+  --port "${PORT}" \
+  --dtype float16 \
+  --max-model-len 2048 \
+  --gpu-memory-utilization 0.85 \
+  --enforce-eager \
+  "${CHAT_TEMPLATE_ARGS[@]}"
