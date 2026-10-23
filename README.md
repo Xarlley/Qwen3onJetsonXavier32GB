@@ -218,7 +218,15 @@ ln -sfn /mnt/rambuild/vllm_deps .deps
 | 5 | `vllm/model_executor/models/registry.py` | `"Qwen3ForCausalLM": ("qwen3", "Qwen3ForCausalLM")` |
 | 6 | `vllm/sampling_params.py` | 空 guided 参数时返回 `None`（见下） |
 
-详细设计说明见 [docs/qwen3-backport.md](./docs/qwen3-backport.md)。
+**现成补丁（推荐）：** 见仓库 [`patches/vllm-0.6.3/`](./patches/vllm-0.6.3/) 与 [`patches/README.md`](./patches/README.md)：
+
+```bash
+cd ~/src/vllm
+git apply /path/to/Qwen3onJetsonXavier32GB/patches/vllm-0.6.3/0001-backport-qwen3-model-config.patch
+git apply /path/to/Qwen3onJetsonXavier32GB/patches/vllm-0.6.3/0002-guided-decoding-params-none.patch
+```
+
+设计说明见 [docs/qwen3-backport.md](./docs/qwen3-backport.md)。
 
 ### 8.3 Guided decoding / outlines 坑
 
@@ -426,14 +434,17 @@ scripts/start_vllm_qwen3.sh.example
 scripts/chat.ps1                   ← Windows 多轮客户端
 docs/qwen3-backport.md             ← 移植细节
 docs/benchmark-notes.md            ← 测速指标与计划摘要
-patches/README.md                  ← 补丁说明（不绑私人路径）
+patches/README.md                  ← 如何应用补丁
+patches/vllm-0.6.3/*.patch         ← Qwen3 移植 + guided 修复
+patches/vllm-0.6.3/files/          ← 新建文件全文副本
 ```
 
 ---
 
 ## 15. TODO / 已知缺口
 
-- [ ] 未在本仓库附带完整 `qwen3.py` 源码快照（请按 [docs/qwen3-backport.md](./docs/qwen3-backport.md) 对照上游 0.8.4 + 本地 `qwen2.py` 自行移植；欢迎 PR 合法补丁）。
+- [x] Qwen3 移植 diff 已放入 [`patches/vllm-0.6.3/`](./patches/vllm-0.6.3/)（含完整新建文件副本）。
+- [ ] 欢迎 PR：一键 `apply_patches.sh`、与更多 0.6.3.post* 小版本的偏移修复。
 - [ ] PyTorch / xformers **逐步编译命令**因环境差异大，仅给原则与检查点；欢迎补充「从零 docker/脚本」PR。
 - [ ] 未覆盖 JetPack 6 / Orin / 官方 vLLM 新版本原生 Qwen3。
 - [ ] ShareGPT 全量 `benchmark_serving.py` 需额外磁盘与数据集，默认以轻量 chat 测试为准。

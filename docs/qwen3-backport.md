@@ -2,6 +2,23 @@
 
 配合主 [README](../README.md) 步骤 D。不绑定任何私人绝对路径；下文以 `~/src/vllm` 为根。
 
+## 0. 直接打补丁（推荐）
+
+完整 unified diff 已放在仓库：
+
+- [`patches/vllm-0.6.3/0001-backport-qwen3-model-config.patch`](../patches/vllm-0.6.3/0001-backport-qwen3-model-config.patch)
+- [`patches/vllm-0.6.3/0002-guided-decoding-params-none.patch`](../patches/vllm-0.6.3/0002-guided-decoding-params-none.patch)
+
+应用步骤见 [`patches/README.md`](../patches/README.md)。  
+新建文件的可读副本：[`patches/vllm-0.6.3/files/`](../patches/vllm-0.6.3/files/)。
+
+```bash
+cd ~/src/vllm
+git apply /path/to/repo/patches/vllm-0.6.3/0001-backport-qwen3-model-config.patch
+git apply /path/to/repo/patches/vllm-0.6.3/0002-guided-decoding-params-none.patch
+# 然后重启 api_server（无需 build_ext）
+```
+
 ## 1. 设计原则
 
 - **只改 Python**，不改 `.cu`，不必为移植本身跑 `build_ext`。
@@ -18,7 +35,7 @@
 
 ## 3. 模型：`model_executor/models/qwen3.py`
 
-建议从本地 `qwen2.py` 复制再改类名与下列差异：
+建议从本地 `qwen2.py` 复制再改类名与下列差异（仓库补丁已包含完整文件）：
 
 | 点 | Qwen2（0.6.3） | Qwen3 |
 |----|----------------|-------|
@@ -36,11 +53,26 @@
 
 ## 4. `sampling_params.py` guided 补丁
 
-`GuidedDecodingParams.from_optional`：若所有 guided 字段为空，应 **`return None`**，避免空对象触发 outlines。
+`GuidedDecodingParams.from_optional`：若所有 guided 字段为空，应 **`return None`**，避免空对象触发 outlines。见 `0002-*.patch`。
 
 ## 5. 验证清单
 
-见主 README §8.4。改完后**重启** `api_server`。
+```bash
+cd ~/src/vllm
+python3 - << 'PY'
+from vllm.transformers_utils.config import _CONFIG_REGISTRY
+from vllm.model_executor.models.registry import ModelRegistry
+from vllm.transformers_utils.configs.qwen3 import Qwen3Config
+assert "qwen3" in _CONFIG_REGISTRY
+cls = ModelRegistry._try_load_model_cls("Qwen3ForCausalLM")
+print("cls", cls)
+c = Qwen3Config(hidden_size=2560, num_attention_heads=32, head_dim=128)
+assert c.head_dim == 128
+print("VERIFY_OK")
+PY
+```
+
+改完后**重启** `api_server`。
 
 ## 6. 量化与后端（提醒）
 
